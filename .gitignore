@@ -1,0 +1,16 @@
+# Never commit wallets, seeds, keys or miner state
+devnet_wallets.json*
+seeds.txt
+*-key.json
+*.seed
+*.key
+signer
+address
+miner.env
+miner.json
+.env*
+results.csv
+pairs_log.jsonl
+node_modules/
+__pycache__/
+*.log

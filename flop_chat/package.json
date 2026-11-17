@@ -1,0 +1,9 @@
+{
+  "name": "flop-chat",
+  "private": true,
+  "type": "module",
+  "scripts": { "start": "node server.mjs" },
+  "dependencies": {
+    "@flop-labs/client": "0.2.2"
+  }
+}
