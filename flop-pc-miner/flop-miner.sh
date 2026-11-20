@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # flop-miner.sh — FLOP devnet GPU miner on a Windows PC with an NVIDIA GPU, in a dedicated WSL2 distro "flop-miner".
 # https://github.com/Makabeez/flop-pc-miner  (MIT). Tested on an RTX 5080 (16 GB), Windows 11, Ubuntu 24.04.
-# Modified copy (VERSION 1.0.0-son.*): evidence store, pin-model, newer MIN_CLI. See CHANGES.md.
+# Modified copy (VERSION 1.0.0-son.*): evidence store, MTU pin, pin-model, newer MIN_CLI. See CHANGES.md.
 #
 # Trust model (everything below is checked by this script, nothing is taken from third parties):
 #   - Container images: only ghcr.io/flop-labs/flop-core/* (the official github.com/flop-labs org),
@@ -43,7 +43,7 @@ MODEL_SLUG=qwen/qwen2.5-0.5b-instruct
 GPU_UTIL_ARG="${GPU_UTIL:-}"; WORKER_NAME_ARG="${WORKER_NAME:-}"   # only override saved values when given
 GPU_UTIL="${GPU_UTIL:-0.6}"
 WORKER_NAME="${WORKER_NAME:-flop-pc-miner}"   # public label; choose yours: WORKER_NAME=alice-4090 ./flop-miner.sh setup
-VERSION=1.0.0-son.7
+VERSION=1.0.0-son.8
 # CLI v0.1.290 reports a verified model without an "ok" field, so the model check also accepts
 # verified_root == MODEL_HASH (the root the CLI recomputed from the files, compared with the chain).
 # Floor for the CLI image. On 7 Nov 2026 the chain moved to runtime spec 1014014 while releases.json still
@@ -499,7 +499,11 @@ EOF
 cmd_up() {
   address >/dev/null
   # Match the miner network's packet size to WSL's link (eth0) and refresh the compose file.
-  envset NET_MTU "$(cat /sys/class/net/eth0/mtu 2>/dev/null || echo 1280)"
+  # NET_MTU_FORCE in miner.env pins the value (e.g. 1280 when the link reports 1492 but long-lived
+  # WebSockets from the containers still drop with 1006); otherwise follow WSL's eth0.
+  local mtu; mtu=$(envget NET_MTU_FORCE || true)
+  [[ "$mtu" =~ ^[0-9]{3,4}$ ]] || mtu=$(cat /sys/class/net/eth0/mtu 2>/dev/null || echo 1280)
+  envset NET_MTU "$mtu"
   grep -q '^SESSION_COMMIT_IDS=' "$D/miner.env" || envset SESSION_COMMIT_IDS 1
   ensure_audit_key
   write_compose
