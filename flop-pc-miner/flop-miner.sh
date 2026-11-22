@@ -43,7 +43,7 @@ MODEL_SLUG=qwen/qwen2.5-0.5b-instruct
 GPU_UTIL_ARG="${GPU_UTIL:-}"; WORKER_NAME_ARG="${WORKER_NAME:-}"   # only override saved values when given
 GPU_UTIL="${GPU_UTIL:-0.6}"
 WORKER_NAME="${WORKER_NAME:-flop-pc-miner}"   # public label; choose yours: WORKER_NAME=alice-4090 ./flop-miner.sh setup
-VERSION=1.0.0-son.9
+VERSION=1.0.0-son.10
 # CLI v0.1.290 reports a verified model without an "ok" field, so the model check also accepts
 # verified_root == MODEL_HASH (the root the CLI recomputed from the files, compared with the chain).
 # Floor for the CLI image. On 7 Nov 2026 the chain moved to runtime spec 1014014 while releases.json still
@@ -455,6 +455,13 @@ $(tail -n 40 "$D/.model-fetch.err" 2>/dev/null)"
     [ "$i" -lt "$tries" ] || die "model fetch failed $tries times (the public RPC may be overloaded; retry later)"
     echo "$(date '+%H:%M') model fetch failed ($i/$tries); retrying in ${MODEL_WAIT:-10} s"; sleep "${MODEL_WAIT:-10}"
   done
+  # The CLI can answer "verified" without writing any file (seen 22 Nov 2026 on a fresh VM): the backend
+  # then crash-loops with "no files found under /models/checkpoint". Never leave setup with an empty folder.
+  if [ -z "$(ls -A "$D/models/qwen2.5-0.5b-instruct" 2>/dev/null)" ]; then
+    echo "model folder is empty after the fetch; pinning the registered commit (pin-model)"
+    cmd_pin_model || die "pin-model failed; run ./flop-miner.sh pin-model, then ./flop-miner.sh up"
+    [ -n "$(ls -A "$D/models/qwen2.5-0.5b-instruct" 2>/dev/null)" ] || die "the model folder is still empty: run ./flop-miner.sh pin-model"
+  fi
 
   step "tunnel (cloudflared from Cloudflare's signed apt repository)"
   if ! command -v cloudflared >/dev/null; then

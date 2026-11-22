@@ -1,7 +1,14 @@
 # Changes in this copy
 
 Based on [Makabeez/flop-pc-miner](https://github.com/Makabeez/flop-pc-miner) v1.0.0 (commit fa33e61, MIT).
-The original LICENSE and README are kept. Only `flop-miner.sh` changed (VERSION `1.0.0-son.9`).
+The original LICENSE and README are kept. Only `flop-miner.sh` changed (VERSION `1.0.0-son.10`).
+
+## 1.0.0-son.10 (22 Nov 2026)
+
+- **Empty model folder check.** On a fresh Vast.ai VM (RTX 4090) the CLI's `model fetch` answered with
+  the verified root but wrote no files, so `setup` printed "model ok" and the backend then crash-looped
+  with `ValueError: no files found under /models/checkpoint`. `setup` now checks that the model folder
+  really has files after the fetch and runs `pin-model` when it is empty.
 
 ## 1.0.0-son.9 (22 Nov 2026)
 
