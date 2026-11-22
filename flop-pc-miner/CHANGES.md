@@ -1,7 +1,15 @@
 # Changes in this copy
 
 Based on [Makabeez/flop-pc-miner](https://github.com/Makabeez/flop-pc-miner) v1.0.0 (commit fa33e61, MIT).
-The original LICENSE and README are kept. Only `flop-miner.sh` changed (VERSION `1.0.0-son.8`).
+The original LICENSE and README are kept. Only `flop-miner.sh` changed (VERSION `1.0.0-son.9`).
+
+## 1.0.0-son.9 (22 Nov 2026)
+
+- **Automatic model pin.** When `setup` fetches the model and the CLI answers `MODEL_VERIFICATION_FAILED`
+  because Hugging Face's `main` branch no longer matches the registered root, `setup` now runs
+  `pin-model` by itself and continues, instead of failing three times and asking for a manual
+  `pin-model` + `SKIP_SPONSOR=1 setup`. Other fetch errors (RPC timeouts) still retry as before.
+  Seen on three fresh Vast.ai VMs (RTX 5060 Ti, RTX 4090) on 21-22 Nov 2026.
 
 ## 1.0.0-son.8 (20 Nov 2026)
 

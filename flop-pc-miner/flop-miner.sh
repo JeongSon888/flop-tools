@@ -43,7 +43,7 @@ MODEL_SLUG=qwen/qwen2.5-0.5b-instruct
 GPU_UTIL_ARG="${GPU_UTIL:-}"; WORKER_NAME_ARG="${WORKER_NAME:-}"   # only override saved values when given
 GPU_UTIL="${GPU_UTIL:-0.6}"
 WORKER_NAME="${WORKER_NAME:-flop-pc-miner}"   # public label; choose yours: WORKER_NAME=alice-4090 ./flop-miner.sh setup
-VERSION=1.0.0-son.8
+VERSION=1.0.0-son.9
 # CLI v0.1.290 reports a verified model without an "ok" field, so the model check also accepts
 # verified_root == MODEL_HASH (the root the CLI recomputed from the files, compared with the chain).
 # Floor for the CLI image. On 7 Nov 2026 the chain moved to runtime spec 1014014 while releases.json still
@@ -436,10 +436,22 @@ cmd_setup() {
     echo "model already in $D/models/qwen2.5-0.5b-instruct; the worker's model gate re-verifies it at every start"
     tries=0
   fi
+  local out
   for i in $(seq 1 "$tries"); do
-    if cli --network devnet --rpc "$RPC" model fetch "$MODEL_HASH" --precision BF16 "${revarg[@]}" \
-         --output-dir /work/models/qwen2.5-0.5b-instruct --json \
-         | jq -e --arg r "${MODEL_HASH#0x}" '(.ok == true) or (.verified_root == $r)' >/dev/null; then echo "model ok (verified root matches the chain)"; break; fi
+    out=$(cli --network devnet --rpc "$RPC" model fetch "$MODEL_HASH" --precision BF16 "${revarg[@]}" \
+         --output-dir /work/models/qwen2.5-0.5b-instruct --json 2>"$D/.model-fetch.err" || true)
+    if jq -e --arg r "${MODEL_HASH#0x}" '(.ok == true) or (.verified_root == $r)' >/dev/null 2>&1 <<<"$out"; then echo "model ok (verified root matches the chain)"; break; fi
+    out="$out
+$(tail -n 40 "$D/.model-fetch.err" 2>/dev/null)"
+    # Hugging Face's main branch no longer matches the registered root: retrying cannot help, so pin the
+    # registered commit (same as ./flop-miner.sh pin-model) instead of failing three times.
+    if grep -q 'MODEL_VERIFICATION_FAILED' <<<"$out" && grep -q 'not the registered root' <<<"$out"; then
+      echo "Hugging Face main does not match the on-chain model; pinning the registered commit (pin-model)"
+      cmd_pin_model || die "pin-model failed; run ./flop-miner.sh pin-model, then ./flop-miner.sh setup again"
+      [ -n "$(ls -A "$D/models/qwen2.5-0.5b-instruct" 2>/dev/null)" ] || die "pin-model left the model folder empty"
+      echo "model pinned; the worker's model gate verifies it at every start"; break
+    fi
+    echo "$out" | tail -n 12
     [ "$i" -lt "$tries" ] || die "model fetch failed $tries times (the public RPC may be overloaded; retry later)"
     echo "$(date '+%H:%M') model fetch failed ($i/$tries); retrying in ${MODEL_WAIT:-10} s"; sleep "${MODEL_WAIT:-10}"
   done
